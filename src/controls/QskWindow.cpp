@@ -171,13 +171,18 @@ class QskWindowPrivate : public QQuickWindowPrivate
 QskWindow::QskWindow( QWindow* parent )
     : Inherited( *( new QskWindowPrivate() ), parent )
 {
+
+    setDefaultAlphaBuffer( true );
     QSurfaceFormat fmt = format();
+    fmt.setSwapInterval(1);
     fmt.setSamples( 4 );
+    fmt.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
 #if 0
     // for QOpenGLDebugLogger
     fmt.setOption( QSurfaceFormat::DebugContext );
 #endif
     setFormat( fmt );
+    QSurfaceFormat::setDefaultFormat(fmt);
 
     /*
         So that inheriting/resolving of the locale works
@@ -190,6 +195,7 @@ QskWindow::QskWindow( QWindow* parent )
         // also when the parent changes TODO ...
         qskResolveLocale( this );
     }
+    setObjectName( QStringLiteral( "QskWindow" ) );
 
     d_func()->contentItemListener.setEnabled( contentItem(), true );
 

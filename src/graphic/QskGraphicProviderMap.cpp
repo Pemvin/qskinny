@@ -5,6 +5,7 @@
 
 #include "QskGraphicProviderMap.h"
 #include "QskGraphicProvider.h"
+#include "QskQrcGraphicProvider.h"
 
 #include <qhash.h>
 #include <qpointer.h>
@@ -24,6 +25,7 @@ class QskGraphicProviderMap::PrivateData
 QskGraphicProviderMap::QskGraphicProviderMap()
     : m_data( new PrivateData() )
 {
+    insert( "qrc", new QskQrcGraphicProvider() );
 }
 
 QskGraphicProviderMap::~QskGraphicProviderMap()

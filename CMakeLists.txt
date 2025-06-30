@@ -28,7 +28,7 @@ macro(qsk_setup_options)
         set( ENABLE_HUNSPELL OFF )
     endif()
 
-    option(ENABLE_ENSURE_SKINS "Examples add skins manually, when not finding plugins" ON)
+    option(ENABLE_ENSURE_SKINS "Examples add skins manually, when not finding plugins" OFF)
 
 endmacro()
 
@@ -103,6 +103,13 @@ qsk_setup_Qt()
 qsk_setup_build()
 qsk_setup_install()
 
+set(QWINDOWKIT_BUILD_STATIC ON)
+set(QWINDOWKIT_BUILD_WIDGETS OFF)
+set(QWINDOWKIT_BUILD_QUICK ON)
+set(QWINDOWKIT_INSTALL OFF)
+add_subdirectory(3rdparty/qwindowkit)
+
+#set(CMAKE_INSTALL_PREFIX ${CMAKE_CURRENT_SOURCE_DIR})
 add_subdirectory(src)
 add_subdirectory(designsystems)
 

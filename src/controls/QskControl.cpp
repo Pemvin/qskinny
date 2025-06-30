@@ -893,7 +893,9 @@ void QskControl::geometryChange(
     if ( d_func()->autoLayoutChildren )
     {
         if ( newGeometry.size() != oldGeometry.size() )
-            polish();
+        {
+                polish();
+        }
     }
 
     Inherited::geometryChange( newGeometry, oldGeometry );

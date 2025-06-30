@@ -31,10 +31,11 @@ else()
     qsk_add_library(${target} STATIC ${SOURCES} ${HEADERS})
 endif()
 
-target_link_libraries(${target} PRIVATE qskinny)
+target_link_libraries(${target} PRIVATE qskinny
+)
 target_include_directories(${target} PUBLIC 
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}>)
-set_target_properties(${target} PROPERTIES PUBLIC_HEADER QskQml.h)
+set_target_properties(${target} PROPERTIES PUBLIC_HEADER "QskQml.h;QskQmlGlobal.h")
 
 if(BUILD_QSKDLL)
     set_target_properties(${target} PROPERTIES DEFINE_SYMBOL QSK_QML_MAKEDLL)

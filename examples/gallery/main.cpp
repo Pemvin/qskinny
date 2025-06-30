@@ -10,9 +10,12 @@
 #include "dialog/DialogPage.h"
 #include "listbox/ListBoxPage.h"
 
-#include <SkinnyShortcut.h>
-#include <SkinnyShapeProvider.h>
+#include <QskSetup.h>
+#include <QskSkinManager.h>
+#include <QskSkin.h>
 #include <SkinnyNamespace.h>
+#include <SkinnyShapeProvider.h>
+#include <SkinnyShortcut.h>
 
 #include "QskLinearBox.h"
 #include <QskMainView.h>
@@ -39,9 +42,90 @@
 #include <QskGraphic.h>
 
 #include <QGuiApplication>
+#include <QFile>
+#include <QTextStream>
+#include <QDateTime>
+#include <QtMessageHandler>
+#include <QDebug>
+#include <functional>
+#include <vector>
+#include <exception>
+
+// Custom message handler to write logs to a file
+// 自定义消息处理函数，用于将日志写入文件
+void logToAFileMessageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
+{
+    QFile file("gallery_debug_log.txt");
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Append | QIODevice::Text))
+    {
+        fprintf(stderr, "Could not open gallery_debug_log.txt for writing.\n");
+        return;
+    }
+
+    QTextStream out(&file);
+    QString log = QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss.zzz ");
+
+    switch (type) {
+    case QtDebugMsg:
+        log += "[Debug]   ";
+        break;
+    case QtInfoMsg:
+        log += "[Info]    ";
+        break;
+    case QtWarningMsg:
+        log += "[Warning] ";
+        break;
+    case QtCriticalMsg:
+        log += "[Critical]";
+        break;
+    case QtFatalMsg:
+        log += "[Fatal]   ";
+        break;
+    }
+
+    if (context.file) {
+        log += QString("%1 (%2:%3, %4)").arg(msg, context.file, QString::number(context.line), context.function);
+    } else {
+        log += msg;
+    }
+    
+    out << log << "\n";
+    out.flush();
+    file.close();
+
+    // Also print to console to see it in real time
+    // 实时打印到控制台
+    fprintf(stderr, "%s\n", qPrintable(log));
+    fflush(stderr);
+
+    if (type == QtFatalMsg)
+        abort();
+}
 
 namespace
 {
+    // Page loading control mechanism for performance testing
+    // 页面加载控制机制，用于性能测试
+    struct PageConfig {
+        QString name;                                    // Tab display name / Tab显示名称
+        std::function<QQuickItem*()> pageCreator;       // Page creation function / 页面创建函数
+        bool enabled;                                   // Whether to load this page / 是否加载此页面
+        QString description;                            // Page description for debugging / 页面描述（用于调试）
+    };
+    
+    // Configure which pages to load - modify 'enabled' field for testing
+    // 配置要加载的页面 - 修改'enabled'字段进行测试
+    static std::vector<PageConfig> g_pageConfigs = {
+        // Start with only 1 page enabled to test basic functionality
+        // 首先只启用1个页面来测试基本功能
+        {"Buttons",    []() -> QQuickItem* { return new ButtonPage(); },    true  ,  "Button controls and actions"},
+        {"Inputs",     []() -> QQuickItem* { return new InputPage(); },      true , "Text inputs and form controls"},  
+        {"Indicators", []() -> QQuickItem* { return new ProgressBarPage(); }, true, "Progress bars and indicators"},
+        {"Selectors",  []() -> QQuickItem* { return new SelectorPage(); },  true  , "Selection controls and menus"},
+        {"Dialogs",    []() -> QQuickItem* { return new DialogPage(); },     true , "Modal dialogs and popups"},
+        {"ListBox",    []() -> QQuickItem* { return new ListBoxPage(); },    true , "List boxes and data views"}
+    };
+
     class GraphicProvider : public QskGraphicProvider
     {
       protected:
@@ -116,6 +200,88 @@ namespace
 
             addTab( tabText, scrollArea );
         }
+
+        // Add page lazily: create the heavy page only when user activates the tab
+        // 延迟添加页面：仅在用户激活该Tab时才创建重量级页面
+        void addPageLazy( const QString& tabText, const std::function<QQuickItem*()>& pageFactory )
+        {
+            auto scrollArea = new QskScrollArea();
+            scrollArea->setMargins( 5 );
+            scrollArea->setFocusPolicy( Qt::NoFocus );
+            scrollArea->setGradientHint( QskScrollView::Viewport, QskGradient() );
+            scrollArea->setBoxShapeHint( QskScrollView::Viewport, 0 );
+            scrollArea->setBoxBorderMetricsHint( QskScrollView::Viewport, 0 );
+            scrollArea->setItemResizable( true );
+
+            // Lightweight placeholder to avoid immediate heavy loading
+            // 轻量占位，避免立即加载重量级页面
+            auto placeholder = new QskLinearBox( Qt::Vertical );
+            placeholder->setLayoutAlignmentHint( Qt::AlignCenter );
+            scrollArea->setScrolledItem( placeholder );
+
+            addTab( tabText, scrollArea );
+
+            // Record lazy entry
+            // 记录延迟加载项
+            LazyEntry entry;
+            entry.index = count() - 1;
+            entry.factory = pageFactory;
+            entry.scrollArea = scrollArea;
+            entry.loaded = false;
+            m_lazyEntries.push_back( entry );
+
+            // Connect once to handle lazy loading on tab activation
+            // 仅连接一次信号，用于在Tab激活时执行延迟加载
+            if ( !m_lazyHandlerConnected )
+            {
+                m_lazyHandlerConnected = true;
+                connect( this, &QskTabView::currentIndexChanged, this,
+                    [this]( int index )
+                    {
+                        for ( auto& e : m_lazyEntries )
+                        {
+                            if ( e.index == index && !e.loaded )
+                            {
+                                qDebug() << "Lazy-loading page at index" << index << "...";
+                                QQuickItem* page = nullptr;
+                                try {
+                                    page = e.factory ? e.factory() : nullptr;
+                                } catch ( const std::exception& ex ) {
+                                    qWarning() << "Exception in pageFactory:" << ex.what();
+                                } catch ( ... ) {
+                                    qWarning() << "Unknown exception in pageFactory";
+                                }
+
+                                if ( page )
+                                {
+                                    e.scrollArea->setScrolledItem( page );
+                                    e.loaded = true;
+                                    qDebug() << "Lazy-loaded page at index" << index << "done.";
+                                }
+                                else
+                                {
+                                    qWarning() << "Failed to lazy-load page at index" << index;
+                                }
+
+                                break;
+                            }
+                        }
+                    }
+                );
+            }
+        }
+
+      private:
+        struct LazyEntry
+        {
+            int index;
+            std::function<QQuickItem*()> factory;
+            QskScrollArea* scrollArea;
+            bool loaded;
+        };
+
+        std::vector< LazyEntry > m_lazyEntries;
+        bool m_lazyHandlerConnected = false;
     };
 
     class MenuButton : public QskPushButton
@@ -259,14 +425,56 @@ namespace
             : QskMainView( parent )
         {
             auto tabView = new TabView( this );
-            tabView->addPage( "Buttons", new ButtonPage() );
-            tabView->addPage( "Inputs", new InputPage() );
-            tabView->addPage( "Indicators", new ProgressBarPage() );
-            tabView->addPage( "Selectors", new SelectorPage() );
-            tabView->addPage( "Dialogs", new DialogPage() );
-            tabView->addPage( "ListBox", new ListBoxPage() );
+            
+            // Load only enabled pages for performance testing
+            // 只加载启用的页面进行性能测试
+            int enabledPageCount = 0;
+            qDebug() << "=== Page Loading Configuration ===";
+            
+            for (const auto& config : g_pageConfigs) {
+                if (config.enabled) {
+                    qDebug() << "Loading page:" << config.name << "-" << config.description;
+                    
+                    // For the heavy Indicators page, load lazily to avoid background cost
+                    // 对于较重的“Indicators”页面，采用延迟加载，避免未显示时的后台开销
+                    if (config.name == "Indicators") {
+                        tabView->addPageLazy(config.name, config.pageCreator);
+                        enabledPageCount++;
+                        continue;
+                    }
 
-            auto header = new Header( tabView->count(), this );
+                    // Create page with error handling
+                    // 创建页面并进行错误处理
+                    try {
+                        QQuickItem* page = config.pageCreator();
+                        if (page) {
+                            tabView->addPage(config.name, page);
+                            enabledPageCount++;
+                        } else {
+                            qWarning() << "Failed to create page:" << config.name;
+                        }
+                    } catch (const std::exception& e) {
+                        qWarning() << "Exception creating page" << config.name << ":" << e.what();
+                    } catch (...) {
+                        qWarning() << "Unknown exception creating page:" << config.name;
+                    }
+                } else {
+                    qDebug() << "Skipping page:" << config.name << "-" << config.description;
+                }
+            }
+            
+            qDebug() << "Total pages loaded:" << enabledPageCount << "out of" << g_pageConfigs.size();
+            qDebug() << "=== End Page Loading Configuration ===";
+
+            // Ensure we have at least one page loaded
+            // 确保至少加载了一个页面
+            if (enabledPageCount == 0) {
+                qWarning() << "No pages loaded! Adding emergency ButtonPage to prevent crash.";
+                tabView->addPage("Emergency", new ButtonPage());
+                enabledPageCount = 1;
+            }
+
+            auto header = new Header( enabledPageCount, this );
 
             connect( header, &Header::enabledToggled,
                 tabView, &TabView::setPagesEnabled );
@@ -288,6 +496,11 @@ namespace
 
 int main( int argc, char* argv[] )
 {
+//    qInstallMessageHandler(logToAFileMessageHandler);
+    qDebug() << "Application starting...";
+
+//    qputenv("QSG_RENDERER_DEBUG", "render");
+
 #ifdef ITEM_STATISTICS
     QskObjectCounter counter( true );
 #endif
@@ -295,13 +508,33 @@ int main( int argc, char* argv[] )
     Qsk::addGraphicProvider( QString(), new GraphicProvider() );
     Qsk::addGraphicProvider( "shapes", new SkinnyShapeProvider() );
 
+
+    QGuiApplication app( argc, argv );
     if ( true ) // environment variable, TODO ...
     {
         // dialogs in faked windows -> QskSubWindow
         QskDialog::instance()->setPolicy( QskDialog::EmbeddedBox );
     }
+    // Setting a skin early avoids a lazy initialization, that might lead
+    // to a pending update request, that is processed, when showing the window
+    // for the first time. This can be avoided by an explicit initialization
+    // before the window is created.
 
-    QGuiApplication app( argc, argv );
+    qDebug() << "Setting skin...";
+    auto skinManager = QskSkinManager::instance();
+
+    QStringList availableSkins = skinManager->skinNames();
+    if ( !availableSkins.isEmpty() )
+    {
+        skinManager->setSkin( availableSkins.first() );
+    }
+    else
+    {
+        qWarning() << "No skins found!";
+        // 在这里可以决定是退出还是继续
+        return -1;
+    }
+    qDebug() << "Skin set.";
 
     SkinnyShortcut::enable( SkinnyShortcut::AllShortcuts );
 
@@ -312,9 +545,14 @@ int main( int argc, char* argv[] )
     window.addItem( new QskFocusIndicator() );
 
     window.resize( 800, 600 );
-    window.show();
 
-    return app.exec();
+    qDebug() << "Showing window...";
+    window.show();
+    qDebug() << "Window shown.";
+
+    const int ret = app.exec();
+    qDebug() << "Application finished with exit code" << ret;
+    return ret;
 }
 
 #include "main.moc"

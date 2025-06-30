@@ -1,8 +1,8 @@
 import QtQuick 2.0
 import Skinny 1.0 as Qsk
 
-Qsk.PushButton 
-{
+Qsk.PushButton {
+    /*
     sizePolicy
     {
         // avoid the effect of long texts
@@ -15,35 +15,33 @@ Qsk.PushButton
         width: 80
         height: 60
     }
-
-    shape
-    {
+*/
+    sizePolicy {
+        horizontal: Qsk.SizePolicy.MinimumExpanding
+        vertical: Qsk.SizePolicy.MinimumExpanding
+    }
+    shape {
         sizeMode: Qt.RelativeSize
         radius: 10
     }
 
-    onClicked: 
-    {
-        console.log( "Clicked" )
+    onClicked: {
+        console.log("Clicked");
     }
 
-    onPressed: 
-    {
-        console.log( "Pressed" )
+    onPressed: {
+        console.log("Pressed");
     }
 
-    onReleased: 
-    {
-        console.log( "Released" )
+    onReleased: {
+        console.log("Released");
     }
 
-    onCanceled: 
-    {
-        console.log( "Canceled" )
+    onCanceled: {
+        console.log("Canceled");
     }
 
-    onToggled:
-    {
-        console.log( "Toggled" )
+    onToggled: {
+        console.log("Toggled");
     }
 }

@@ -2,5 +2,9 @@
     <qresource prefix="/qml">
         <file>TestButton.qml</file>
         <file>buttons.qml</file>
+        <file>window-bar/close.svg</file>
+        <file>window-bar/fullscreen.svg</file>
+        <file>window-bar/maximize.svg</file>
+        <file>window-bar/minimize.svg</file>
     </qresource>
 </RCC>

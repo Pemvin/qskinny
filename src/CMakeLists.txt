@@ -78,6 +78,7 @@ list(APPEND PRIVATE_HEADERS
 )
 
 list(APPEND HEADERS
+    graphic/QskQrcGraphicProvider.h
     graphic/QskColorFilter.h
     graphic/QskGlyphGraphicProvider.h
     graphic/QskGlyphTable.h
@@ -94,6 +95,7 @@ list(APPEND HEADERS
 )
 
 list(APPEND SOURCES
+    graphic/QskQrcGraphicProvider.cpp
     graphic/QskColorFilter.cpp
     graphic/QskGlyphGraphicProvider.cpp
     graphic/QskGlyphTable.cpp
@@ -300,6 +302,7 @@ list(APPEND HEADERS
     controls/QskTextLabelSkinlet.h
     controls/QskVariantAnimator.h
     controls/QskWindow.h
+    controls/QskQuickWindowAgent.h
 )
 
 list(APPEND PRIVATE_HEADERS
@@ -411,6 +414,7 @@ list(APPEND SOURCES
     controls/QskTextLabelSkinlet.cpp
     controls/QskVariantAnimator.cpp
     controls/QskWindow.cpp
+    controls/QskQuickWindowAgent.cpp
 )
 
 list(APPEND HEADERS
@@ -520,14 +524,19 @@ target_include_directories(${target} PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/graphic>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/inputpanel>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/layouts>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/nodes>)
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/nodes>
+    $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/3rdparty/qwindowkit/include>
+    )
 
 target_include_directories(${target}
     INTERFACE
         $<INSTALL_INTERFACE:${QSK_INSTALL_HEADERS}>)
 
 target_link_libraries(${target}
-    PUBLIC Qt::Core Qt::CorePrivate Qt::Quick Qt::QuickPrivate)
+    PUBLIC Qt::Core Qt::CorePrivate Qt::Quick Qt::QuickPrivate Qt::Svg
+    PRIVATE QWKCore
+    PRIVATE QWKQuick
+)
 
 if (QT_VERSION_MAJOR VERSION_GREATER 5)
     target_link_libraries(${target} PUBLIC Qt::OpenGL Qt::OpenGLPrivate)
@@ -592,3 +601,5 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         DESTINATION 
             ${QSK_INSTALL_LIBS} OPTIONAL)
 endif()
+
+

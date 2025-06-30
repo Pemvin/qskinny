@@ -57,6 +57,7 @@
 #include <QskTextOptions.h>
 #include <QskVirtualKeyboard.h>
 #include <QskWindow.h>
+#include <QskQuickWindowAgent.h>
 
 #if QT_VERSION < QT_VERSION_CHECK( 6, 2, 0 )
 
@@ -193,9 +194,11 @@ namespace
 
 void QskQml::registerTypes()
 {
+    QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
     registerObject< QskShortcutQml >( "Shortcut" );
 
     registerObject< QskWindow >();
+    registerObject< QskQuickWindowAgent >();
 
     registerObject< QskDialogWindow >();
     registerObject< QskMessageWindow >();

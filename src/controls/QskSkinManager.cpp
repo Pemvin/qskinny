@@ -370,6 +370,7 @@ class QskSkinManager::PrivateData
         {
             if ( loader == nullptr )
                 loader = new FactoryLoader();
+            qDebug() << "registerpluginPaths:" << fileName;
 
             bool ok = loader->setPlugin( dir.absoluteFilePath( fileName ) );
             if ( ok && !factoryMap.hasFactory( loader->factoryId() ) )
@@ -402,6 +403,8 @@ QskSkinManager::QskSkinManager()
 {
     setPluginPaths( qskPathList( "QSK_PLUGIN_PATH" ) +
         qskPathList( "QT_PLUGIN_PATH" ) );
+    //将调用者程序目录下的plugins目录添加到插件路径中
+    addPluginPath( qskResolvedPath( QStringLiteral( "plugins" ) ) );
 }
 
 QskSkinManager::~QskSkinManager()
@@ -411,6 +414,8 @@ QskSkinManager::~QskSkinManager()
 void QskSkinManager::addPluginPath( const QString& path )
 {
     const auto pluginPath = qskResolvedPath( path );
+    //打印待添加的路径
+    qDebug() << "addPluginPath:" << pluginPath;
 
     // Avoid adding pluginPath that is empty or is already contained in the paths.
     if ( !pluginPath.isEmpty() && !m_data->pluginPaths.contains( pluginPath ) )
@@ -420,6 +425,8 @@ void QskSkinManager::addPluginPath( const QString& path )
         if ( m_data->pluginsRegistered )
             m_data->registerPlugins( pluginPath );
     }
+    //打印全部搜索路径
+    qDebug() << "pluginPaths:" << m_data->pluginPaths;
 }
 
 void QskSkinManager::removePluginPath( const QString& path )
@@ -518,7 +525,9 @@ QskSkin* QskSkinManager::createSkin(
     if ( factory == nullptr )
     {
         const auto names = map.skinNames();
-        if ( !names.isEmpty() )
+        //输出调试信息，皮肤数量
+        qDebug() << "skinNames count:" << names.count();
+        if ( !(names.isEmpty()) )
         {
             name = names.first();
             factory = map.factory( name );

@@ -25,6 +25,7 @@ int main( int argc, char* argv[] )
 #ifdef ITEM_STATISTICS
     QskObjectCounter counter( true );
 #endif
+    QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
 
     QGuiApplication app( argc, argv );
 

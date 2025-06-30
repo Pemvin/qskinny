@@ -21,7 +21,10 @@ else()
     qsk_add_library(${target} STATIC ${SOURCES})
 endif()
 
-target_link_libraries(${target} PUBLIC qskinny)
+target_link_libraries(${target} PUBLIC qskinny
+#    PRIVATE QWKCore
+#    PRIVATE QWKQuick
+)
 
 if (BUILD_QSKDLL)
     set_target_properties( ${target} PROPERTIES DEFINE_SYMBOL SKINNY_MAKEDLL )
